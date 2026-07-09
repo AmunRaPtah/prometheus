@@ -47,5 +47,5 @@ def test_facts_and_sheet(con):
     f = analysis.facts(con)
     assert set(f) >= {"overview", "trends", "top_drugs", "top_targets", "gaps"}
     sheet = analysis.facts_sheet(con)
-    assert "Aqueduct facts" in sheet and "Top drugs" in sheet
+    assert "Prometheus facts" in sheet and "Top drugs" in sheet
     assert "fentanyl" in sheet.lower()
