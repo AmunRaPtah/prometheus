@@ -1,0 +1,80 @@
+name: prometheus-harvest
+
+# Runs the Prometheus corpus harvest on GitHub Actions (public repo -> free unlimited
+# minutes). Mirrors aqueduct-harvest.yml. State (data/: raw + warehouse) is stored as a
+# single state.tgz archive on OneDrive and pulled/pushed via rclone.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: per-source page size
+        default: '15'
+  schedule:
+    - cron: '0 6 * * *'   # daily 06:00 UTC (offset from aqueduct + leviathan)
+
+concurrency:
+  group: prometheus-harvest
+  cancel-in-progress: true
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      LIMIT: ${{ github.event.inputs.limit || '15' }}
+      OPENALEX_MAILTO: work@supercriticalbooks.com
+      PROMETHEUS_EMBED_BACKEND: lsa
+      PROMETHEUS_DB_MEMORY_LIMIT: 4GB
+      PROMETHEUS_DB_THREADS: '2'
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      PROMETHEUS_EMAIL_TO: ${{ secrets.EMAIL_TO }}
+      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+      DEEPSEEK_BASE_URL: https://api.deepseek.com/anthropic
+      DEEPSEEK_MODEL: deepseek-chat
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install rclone (latest) + package
+        run: |
+          curl -fsSL https://rclone.org/install.sh | sudo bash
+          rclone version
+          python -m pip install -U pip
+          pip install -e .
+      - name: Restore rclone config
+        env:
+          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
+        run: |
+          mkdir -p ~/.config/rclone
+          printf '%s' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
+          chmod 600 ~/.config/rclone/rclone.conf
+      - name: Pull corpus state from OneDrive
+        run: |
+          mkdir -p data
+          if rclone copyto onedrive:prometheus-state/state.tgz state.tgz --onedrive-chunk-size 100M --stats 30s; then
+            tar -xzf state.tgz -C data && rm -f state.tgz
+          else
+            echo "No state.tgz on OneDrive yet — starting from an empty data/"
+          fi
+          du -sh data 2>/dev/null || true
+      - name: Harvest (fetch + build)
+        run: python -m prometheus harvest --topics topics.json --limit "$LIMIT"
+      - name: Daily report email (best-effort)
+        continue-on-error: true
+        run: |
+          python -m prometheus report || true
+          REPORT=$(ls -t data/reports/*.md 2>/dev/null | head -1)
+          echo "emailing report file: ${REPORT:-<none>}"
+          if [ -n "$RESEND_API_KEY" ] && [ -n "$PROMETHEUS_EMAIL_TO" ] && [ -s "$REPORT" ]; then
+            REPORT="$REPORT" TO="$PROMETHEUS_EMAIL_TO" python3 -c "import json,os;print(json.dumps({'from':'Prometheus <onboarding@resend.dev>','to':[os.environ['TO']],'subject':'\U0001F525 Prometheus daily corpus report','text':open(os.environ['REPORT']).read()[:90000]}))" > /tmp/r.json
+            curl -s -X POST https://api.resend.com/emails -H "Authorization: Bearer $RESEND_API_KEY" \
+                 -H "Content-Type: application/json" \
+                 -A "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/120 Safari/537.36" \
+                 --data @/tmp/r.json >/dev/null || true
+          fi
+      - name: Push updated corpus state to OneDrive
+        run: |
+          tar -czf state.tgz -C data --exclude='*.wal' .
+          rclone copyto state.tgz onedrive:prometheus-state/state.tgz --onedrive-chunk-size 100M --stats 30s
