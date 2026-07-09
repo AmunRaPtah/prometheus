@@ -1,20 +1,20 @@
 {
-  "_comment": "Prometheus topics — the technology / mathematics / frontier-science corpus (sibling of aqueduct). Scholarly open-access literature via arXiv (primary: CS, math, physics, EE) + OpenAlex (engineering/CS). Each list entry is one search. NOTE: CI overwrites this file from the PROMETHEUS_TOPICS repo secret — update that secret too. Assigned topics: Hacking, Social Engineering (technical), Propaganda (computational), War (military tech/cyber), Deception (deepfakes/adversarial ML), Espionage (SIGINT/cyber), Money laundering (blockchain forensics), Arms & weapons (engineering), Forensics (digital).",
+  "_comment": "Prometheus topics — the technology / mathematics / frontier-science corpus (sibling of aqueduct). OpenAlex is the reliable primary (it indexes arXiv preprints AND published venues, no CI rate limits); arXiv is best-effort native full-text (it aggressively 429s cloud IPs, so it fills in opportunistically). NOTE: CI overwrites this file from the PROMETHEUS_TOPICS repo secret — update that secret too. Assigned topics: Hacking, Social Engineering (technical), Propaganda (computational), War (military tech/cyber), Deception (deepfakes/adversarial ML), Espionage (SIGINT/cyber), Money laundering (blockchain forensics), Arms & weapons (engineering), Forensics (digital).",
   "documents": {
-    "arxiv": [
+    "openalex": [
       "large language model reasoning agents",
       "foundation model scaling laws training",
-      "reinforcement learning from human feedback",
+      "reinforcement learning from human feedback alignment",
       "computer vision multimodal representation learning",
-      "graph neural networks representation",
-      "software vulnerability detection exploitation",
+      "graph neural networks representation learning",
+      "software vulnerability detection machine learning",
       "binary analysis fuzzing exploit generation",
       "malware analysis classification detection",
-      "network intrusion detection machine learning",
+      "network intrusion detection deep learning",
       "side channel attack cryptographic hardware",
       "adversarial machine learning robustness attacks",
       "web application security automated testing",
-      "post quantum cryptography lattice",
+      "post quantum cryptography lattice based",
       "zero knowledge proofs verifiable computation",
       "deepfake generation and detection",
       "traffic analysis anonymity Tor network",
@@ -24,7 +24,7 @@
       "guidance navigation control missile dynamics",
       "hypersonic vehicle aerodynamics modeling",
       "energetic materials propellant combustion",
-      "drone swarm coordination control",
+      "drone swarm coordination distributed control",
       "digital forensics memory acquisition analysis",
       "malware reverse engineering techniques",
       "quantum computing algorithms error correction",
@@ -32,17 +32,24 @@
       "materials discovery machine learning",
       "convex optimization large scale methods",
       "number theory algorithms cryptography",
-      "signal processing spectrum sensing estimation"
-    ],
-    "openalex": [
-      "quantum computing hardware superconducting qubits",
+      "signal processing spectrum sensing estimation",
       "semiconductor device physics nanoelectronics",
       "robotics learning control manipulation",
-      "materials informatics high throughput screening",
       "cybersecurity threat intelligence detection",
       "critical infrastructure security resilience",
-      "artificial intelligence frontier capabilities safety",
-      "cryptography protocol security analysis"
+      "artificial intelligence safety frontier capabilities"
+    ],
+    "arxiv": [
+      "large language model reasoning agents",
+      "software vulnerability detection exploitation",
+      "adversarial machine learning robustness",
+      "post quantum cryptography lattice",
+      "deepfake generation detection",
+      "blockchain forensics illicit transaction",
+      "autonomous weapons systems control",
+      "digital forensics memory analysis",
+      "quantum computing error correction",
+      "materials discovery machine learning"
     ],
     "europepmc": [],
     "surechembl": [],
