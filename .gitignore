@@ -5,7 +5,6 @@
 data/
 
 # personal harvest watchlist (copy from topics.example.json)
-topics.json
 # auto-generated query expansions (regenerated from corpus insights each harvest)
 *.generated.json
 

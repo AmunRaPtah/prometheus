@@ -1,0 +1,61 @@
+{
+  "_comment": "Prometheus topics — the technology / mathematics / frontier-science corpus (sibling of aqueduct). Scholarly open-access literature via arXiv (primary: CS, math, physics, EE) + OpenAlex (engineering/CS). Each list entry is one search. NOTE: CI overwrites this file from the PROMETHEUS_TOPICS repo secret — update that secret too. Assigned topics: Hacking, Social Engineering (technical), Propaganda (computational), War (military tech/cyber), Deception (deepfakes/adversarial ML), Espionage (SIGINT/cyber), Money laundering (blockchain forensics), Arms & weapons (engineering), Forensics (digital).",
+  "documents": {
+    "arxiv": [
+      "large language model reasoning agents",
+      "foundation model scaling laws training",
+      "reinforcement learning from human feedback",
+      "computer vision multimodal representation learning",
+      "graph neural networks representation",
+      "software vulnerability detection exploitation",
+      "binary analysis fuzzing exploit generation",
+      "malware analysis classification detection",
+      "network intrusion detection machine learning",
+      "side channel attack cryptographic hardware",
+      "adversarial machine learning robustness attacks",
+      "web application security automated testing",
+      "post quantum cryptography lattice",
+      "zero knowledge proofs verifiable computation",
+      "deepfake generation and detection",
+      "traffic analysis anonymity Tor network",
+      "blockchain forensics illicit transaction detection",
+      "anti money laundering graph neural network cryptocurrency",
+      "autonomous weapons systems control ethics",
+      "guidance navigation control missile dynamics",
+      "hypersonic vehicle aerodynamics modeling",
+      "energetic materials propellant combustion",
+      "drone swarm coordination control",
+      "digital forensics memory acquisition analysis",
+      "malware reverse engineering techniques",
+      "quantum computing algorithms error correction",
+      "quantum key distribution photonics",
+      "materials discovery machine learning",
+      "convex optimization large scale methods",
+      "number theory algorithms cryptography",
+      "signal processing spectrum sensing estimation"
+    ],
+    "openalex": [
+      "quantum computing hardware superconducting qubits",
+      "semiconductor device physics nanoelectronics",
+      "robotics learning control manipulation",
+      "materials informatics high throughput screening",
+      "cybersecurity threat intelligence detection",
+      "critical infrastructure security resilience",
+      "artificial intelligence frontier capabilities safety",
+      "cryptography protocol security analysis"
+    ],
+    "europepmc": [],
+    "surechembl": [],
+    "epo_ops": [],
+    "google_patents": []
+  },
+  "structured": {
+    "chembl": [],
+    "clinicaltrials": [],
+    "uniprot": [],
+    "pubchem": [],
+    "pdb": [],
+    "ensembl": [],
+    "bindingdb": []
+  }
+}
