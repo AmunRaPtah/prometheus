@@ -224,16 +224,19 @@ def facts_sheet(con=None) -> str:
     if o.get("by_source"):
         s.append("- By source: " + ", ".join(f"{src}={n}" for src, n in o["by_source"]))
     s.append("\n## Papers per year\n" + _tbl(f["trends"], ["year", "papers"]))
-    s.append("\n## Top drugs (by connectivity)\n"
-             + _tbl(f["top_drugs"], ["drug", "max_phase", "trials", "papers", "targets"]))
-    s.append("\n## Top targets\n"
-             + _tbl(f["top_targets"], ["gene", "drugs", "structures", "papers"]))
+    if f["top_drugs"]:
+        s.append("\n## Top drugs (by connectivity)\n"
+                 + _tbl(f["top_drugs"], ["drug", "max_phase", "trials", "papers", "targets"]))
+    if f["top_targets"]:
+        s.append("\n## Top targets\n"
+                 + _tbl(f["top_targets"], ["gene", "drugs", "structures", "papers"]))
     g = f["gaps"]
-    s.append("\n## Gaps")
-    s.append("- Targets without drugs: "
-             + ", ".join(r[0] for r in g.get("targets_without_drugs", [])) or "_none_")
-    s.append("- Drugs without trials: "
-             + ", ".join(r[0] for r in g.get("drugs_without_trials", [])) or "_none_")
+    if g.get("targets_without_drugs") or g.get("drugs_without_trials"):
+        s.append("\n## Gaps")
+        s.append("- Targets without drugs: "
+                 + (", ".join(r[0] for r in g.get("targets_without_drugs", [])) or "_none_"))
+        s.append("- Drugs without trials: "
+                 + (", ".join(r[0] for r in g.get("drugs_without_trials", [])) or "_none_"))
     a = f.get("asymmetries", {})
     if a:
         s.append("\n## Asymmetries (novelty signals)")
