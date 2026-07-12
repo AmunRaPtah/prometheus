@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import seed
 
-from prometheus import corpus, datasets, embeddings, links, rag
+from prometheus import corpus, embeddings, rag
 
 
 def _setup(con):
@@ -12,9 +12,6 @@ def _setup(con):
                        abstract="Fentanyl is a potent mu-opioid receptor agonist.",
                        sections=[("Body", "Fentanyl produces analgesia via OPRM1. " * 6)])
     corpus.build(con)
-    seed.seed_chembl(); seed.seed_uniprot()
-    datasets.build(con)
-    links.build(con)
     embeddings.build_index(con, backend="lsa", dims=8)
 
 
@@ -27,12 +24,12 @@ def test_retrieve_returns_grounded_chunks(con, env):
     assert set(top) >= {"id", "title", "doi", "source", "score", "text"}  # citeable
 
 
-def test_retrieve_attaches_graph_context_for_known_drug(con, env):
+def test_retrieve_graph_context_empty_without_link_tables(con, env):
+    # entity_drugs/link_drug_* no longer exist (links.py retired) -- _graph_context
+    # degrades gracefully rather than erroring.
     _setup(con)
     out = rag.retrieve("fentanyl mechanism of action", k=5, con=con)
-    drugs = out.get("graph", {}).get("drugs", [])
-    assert any(d["drug"] == "fentanyl" for d in drugs)
-    assert "OPRM1" in drugs[0]["targets"]
+    assert out.get("graph", {}) == {}
 
 
 def test_retrieve_empty_is_graceful(con, env):

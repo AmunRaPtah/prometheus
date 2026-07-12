@@ -5,8 +5,8 @@ from __future__ import annotations
 import argparse
 import json
 
-from . import (analysis, analytics, corpus, datasets, discover, documents, embeddings,
-               harvest, ingest, links, pipeline, process, rag, reports, storage,
+from . import (analysis, analytics, corpus, datasets, documents, embeddings, entities,
+               harvest, ingest, pipeline, process, rag, reports, storage,
                validate as validate_mod)
 from .sources import (arxiv, bindingdb, chembl, clinicaltrials, ensembl, europepmc,
                       openalex, patents, pdb, pubchem, uniprot)
@@ -120,21 +120,13 @@ def main(argv: list[str] | None = None) -> int:
     vp = sub.add_parser("validate", help="data-quality check over the corpus (no LLM)")
     vp.add_argument("--json", action="store_true", help="emit the report as JSON")
 
-    # --- cross-source entity links (drug <-> trial <-> paper) ---
-    l_grp = sub.add_parser("links", help="cross-source entity links")
-    l_sub = l_grp.add_subparsers(dest="links_cmd", required=True)
-    l_sub.add_parser("build", help="build the drug/trial/paper/protein link graph")
-    l_sub.add_parser("report", help="best-connected drugs across sources")
-    le = l_sub.add_parser("explore", help="show trials + papers + targets linked to a drug")
-    le.add_argument("drug")
-    lp = l_sub.add_parser("protein", help="show drugs + structures + papers linked to a gene")
-    lp.add_argument("gene")
-    ld = l_sub.add_parser("discover", help="semantic-over-graph: papers about a drug's biology")
-    ld.add_argument("drug")
-    ld.add_argument("-k", type=int, default=8)
-    ldp = l_sub.add_parser("discover-protein", help="semantic-over-graph: papers about a gene's biology")
-    ldp.add_argument("gene")
-    ldp.add_argument("-k", type=int, default=8)
+    # --- entity graph (technology/organization/vulnerability/method, LLM-extracted) ---
+    e_grp = sub.add_parser("entities", help="entity graph (local-LLM extracted, local-only)")
+    e_sub = e_grp.add_subparsers(dest="entities_cmd", required=True)
+    e_sub.add_parser("build", help="extract entities from new documents, rebuild the graph")
+    e_sub.add_parser("report", help="top entities by document count")
+    ee = e_sub.add_parser("explore", help="show documents linked to an entity")
+    ee.add_argument("name")
 
     # --- synthetic events demo (original scaffold) ---
     p_run = sub.add_parser("run", help="[demo] synthetic events pipeline")
@@ -210,19 +202,13 @@ def main(argv: list[str] | None = None) -> int:
             datasets.build()
         elif args.data_cmd == "report":
             datasets.report()
-    elif args.command == "links":
-        if args.links_cmd == "build":
-            links.build()
-        elif args.links_cmd == "report":
-            links.report()
-        elif args.links_cmd == "explore":
-            links.explore(args.drug)
-        elif args.links_cmd == "protein":
-            links.explore_protein(args.gene)
-        elif args.links_cmd == "discover":
-            discover.drug(args.drug, k=args.k)
-        elif args.links_cmd == "discover-protein":
-            discover.protein(args.gene, k=args.k)
+    elif args.command == "entities":
+        if args.entities_cmd == "build":
+            entities.build()
+        elif args.entities_cmd == "report":
+            entities.report()
+        elif args.entities_cmd == "explore":
+            entities.explore(args.name)
     elif args.command == "run":
         pipeline.run(n_events=args.events, seed=args.seed)
     elif args.command == "ingest":

@@ -5,7 +5,6 @@ Stdlib only (no web framework). Endpoints return JSON:
   GET  /retrieve?q=..&k=..&min_score=..&source=..&section=..   -> rag.retrieve()
   POST /retrieve   {query,k,min_score,sources,sec_types}        -> rag.retrieve()
   GET  /facts                          -> analysis.facts()
-  GET  /discover?drug=NAME | ?gene=SYM -> discover.ranked_papers[_protein]()
 
 Auth: if PROMETHEUS_API_KEY is set, requests must send `Authorization: Bearer <key>`
 (open when unset, for local use). Bind to 127.0.0.1 unless you front it with a tunnel.
@@ -13,12 +12,13 @@ Auth: if PROMETHEUS_API_KEY is set, requests must send `Authorization: Bearer <k
 
 from __future__ import annotations
 
+import hmac
 import json
 import os
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlparse
 
-from . import analysis, discover, embeddings, rag
+from . import analysis, embeddings, rag
 
 
 def _one(params: dict, key: str, default=None):
@@ -48,21 +48,6 @@ def route(method: str, path: str, params: dict, body: dict, authed: bool) -> tup
     if path == "/facts":
         return 200, analysis.facts()
 
-    if path == "/discover":
-        drug, gene = _one(params, "drug"), _one(params, "gene")
-        k = int(_one(params, "k", 8))
-        if drug:
-            prof, ranked = discover.ranked_papers(drug, k=k)
-            return 200, {"drug": drug, "profile": prof,
-                         "papers": [{"id": p, "score": round(s, 4), "direct": d}
-                                    for p, s, d in ranked]}
-        if gene:
-            prof, ranked = discover.ranked_papers_protein(gene, k=k)
-            return 200, {"gene": gene, "profile": prof,
-                         "papers": [{"id": p, "score": round(s, 4), "direct": d}
-                                    for p, s, d in ranked]}
-        return 400, {"error": "provide ?drug= or ?gene="}
-
     return 404, {"error": "not found", "path": path}
 
 
@@ -70,7 +55,7 @@ def _authed(headers) -> bool:
     key = os.environ.get("PROMETHEUS_API_KEY")
     if not key:
         return True
-    return headers.get("Authorization", "") == f"Bearer {key}"
+    return hmac.compare_digest(headers.get("Authorization", ""), f"Bearer {key}")
 
 
 class _Handler(BaseHTTPRequestHandler):

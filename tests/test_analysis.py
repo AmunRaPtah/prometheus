@@ -1,10 +1,18 @@
-"""Quantitative analysis library (offline, seeded graph)."""
+"""Quantitative analysis library (offline).
+
+The drug/protein graph metrics (top_drugs/top_targets/gaps/asymmetries) are guarded
+by `_has(con, ...)` table-presence checks and degrade gracefully to empty results now
+that nothing builds `entity_drugs`/`link_drug_*` (the pharma-specific `links.py` graph
+was retired -- see entities.py for prometheus's own tech/org/vuln graph). Kept here as
+regression coverage that the guarded paths stay harmless with those tables absent,
+matching prometheus's actual production state (they were always empty in practice).
+"""
 
 from __future__ import annotations
 
 import seed
 
-from prometheus import analysis, corpus, datasets, links
+from prometheus import analysis, corpus, datasets
 
 
 def _graph(con):
@@ -18,7 +26,6 @@ def _graph(con):
     seed.seed_chembl(); seed.seed_clinicaltrials(); seed.seed_uniprot()
     seed.seed_pdb()
     datasets.build(con)
-    links.build(con)
 
 
 def test_overview_counts_unique_papers(con):
@@ -28,18 +35,11 @@ def test_overview_counts_unique_papers(con):
     assert o["cross_source_dupes"] == 1
 
 
-def test_top_drugs_and_targets(con):
+def test_drug_graph_metrics_empty_without_link_tables(con):
     _graph(con)
-    drugs = analysis.top_drugs(con)
-    assert any(row[0] == "fentanyl" for row in drugs)
-    targets = analysis.top_targets(con)
-    assert any(row[0] == "OPRM1" for row in targets)
-
-
-def test_gaps_structure(con):
-    _graph(con)
-    g = analysis.gaps(con)
-    assert "targets_without_drugs" in g and "drugs_without_trials" in g
+    assert analysis.top_drugs(con) == []
+    assert analysis.top_targets(con) == []
+    assert analysis.gaps(con) == {}
 
 
 def test_facts_and_sheet(con):
@@ -47,5 +47,5 @@ def test_facts_and_sheet(con):
     f = analysis.facts(con)
     assert set(f) >= {"overview", "trends", "top_drugs", "top_targets", "gaps"}
     sheet = analysis.facts_sheet(con)
-    assert "Prometheus facts" in sheet and "Top drugs" in sheet
-    assert "fentanyl" in sheet.lower()
+    assert "Prometheus facts" in sheet
+    assert "Top drugs" not in sheet  # section omitted when there's nothing to show

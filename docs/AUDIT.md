@@ -1,65 +1,65 @@
-# Aqueduct audit — findings & status
+# Prometheus audit — findings & status
 
-External critical audit (2026-06-20), with the lens of using Aqueduct as a **RAG
-backend for an external agent** (the Pardalos project). Verdict at audit time:
-🟢 local research use ready · 🔴 external-RAG use *not* ready (5 blockers).
+This file used to be aqueduct's `docs/AUDIT.md` copied verbatim (find-replace of the
+package name only) — flagged as a stale-docs finding in the 2026-07-11 cross-repo
+audit, since it described drug/protein matching, RxNorm/MeSH, and ChEMBL synonyms,
+none of which apply to prometheus's tech/frontier-science domain. Replaced with an
+accurate summary below.
 
-**Update (2026-06-20, remediation cycle):** all 5 RAG blockers closed and the entire
-prioritized backlog cleared. Verdict now: 🟢 local research ready · 🟢 external-RAG ready.
+## Hardening ported from aqueduct (verified 2026-07-11, still true)
+Prometheus is a fork of aqueduct's corpus engine and inherited its resilience work
+byte-for-byte (only naming differs): `net.py`'s per-host rate limiter + circuit
+breaker + structured `TransientError`/`PermanentError`, the ingest-time quality gate
+(`quality.py`, admission control with an auditable `documents_rejected` quarantine),
+`embeddings.py`'s randomized-truncated-SVD LSA fit (avoids the full-SVD OOM aqueduct
+hit in production), chunk-level metadata (`sec_kind`/IMRaD/`is_methods`/`is_results`),
+index versioning with `corpus_hash` skip-if-unchanged, structured JSON logging
+(`obs.py`), and harvest query-version tracking (`data/harvest_state.json`).
 
-Status legend: ✅ done · 🟡 partial · ⬜ open
+One gap found and fixed in the 2026-07-11 audit: `server.py`'s bearer-auth check used
+a plain `==` string comparison on the API key (a timing side-channel), inherited
+identically from aqueduct. Fixed to `hmac.compare_digest` in all three corpus-engine
+repos (aqueduct, leviathan, prometheus) the same day.
 
-## What it does well
-Clean medallion architecture; keyless idempotent connectors; robust JATS parser;
-pluggable embeddings with incremental re-embed; lexical drug normalization + ChEMBL
-synonym graph; declarative topics-driven harvest that survives per-query failures.
+## Retired: the pharma-specific link graph (2026-07-11)
+`links.py`/`discover.py` — aqueduct's drug/trial/paper/protein graph (ChEMBL/UniProt
+entity resolution, stereoisomer normalization, drug↔document confidence scoring) —
+were inherited but never functional here: prometheus's `topics.json` `structured`
+query lists were always empty, so nothing ever populated `entity_drugs`/`link_drug_*`.
+Removed outright, along with the dependent `/discover` HTTP endpoint and the
+`harvest.py` call. `analysis.py`'s drug/protein-graph metrics (`top_drugs`,
+`top_targets`, `gaps`, `asymmetries`) and `rag.py`'s graph-context enrichment are
+guarded by table-presence checks and degrade to empty results now that those tables
+never get created — no behavior change from before (they were already always empty in
+production), see `tests/test_analysis.py`/`tests/test_rag.py`.
 
-## The 5 RAG blockers
-| # | Item | Status | Notes |
-|---|------|--------|-------|
-| 1 | Retrieval/query API | ✅ | `prometheus rag` (JSON CLI) **and** `prometheus serve` — a stdlib HTTP API (`/retrieve`, `/health`, `/facts`, `/discover`) with bearer auth, for remote consumers (the Pardalos bot). |
-| 2 | Chunk-level metadata | ✅ | `sec_type`/`sec_title` **plus** `sec_kind` (IMRaD), `is_methods`/`is_results`, `n_figures`/`n_tables`, and per-doc chunk ordinal — all persisted on `doc_chunks`, exposed by `rag.retrieve`, and filterable (`rag --kind methods,results`). |
-| 3 | Index versioning/validation | ✅ | Index stamps `index_version/backend/dims/n_chunks/corpus_hash`; `index_info()` exposes it. |
-| 4 | Idempotency / orphaned embeddings | ✅ | Incremental re-embed by hash **and** a `corpus_hash` check in `build_index` that auto-skips a rebuild when the corpus is unchanged (`--force` overrides). A no-op harvest now costs one hash, not a re-embed. |
-| 5 | Retrieval-quality benchmark | ✅ | `tests/test_retrieval_quality.py` — Recall@k + MRR gold set, run on backend/chunking changes. |
+## New: prometheus's own entity graph (2026-07-11)
+`entities.py` replaces it with a graph suited to this domain: `technology` /
+`organization` / `vulnerability` / `method` entities extracted from each document's
+title+abstract via a local LLM (`local_llm.py`, llama-swap's OpenAI-compatible
+endpoint on this box) plus a deterministic CVE-ID regex pass. Schema is one generic
+`doc_entity_mentions` → `entities` → `link_entity_document` rollup rather than
+per-type tables, since (unlike ChEMBL/UniProt) there's no canonical registry per
+entity type here — every entity comes from the same extraction source. CLI:
+`prometheus entities {build, report, explore}`.
 
-## Other findings (prioritized backlog) — all cleared
-| Pri | Item | Status | Where |
-|-----|------|--------|-------|
-| MED | Structured error handling (Transient vs Permanent) | ✅ | `net.py` — `TransientError`/`PermanentError`/`RateLimitError`/`CircuitOpenError` |
-| MED | Shared RateLimiter + 429/header honoring | ✅ | `net.RateLimiter` — per-host pacing, honors `Retry-After`/429 |
-| MED | Exp. backoff w/ jitter + circuit breaker | ✅ | `net.request` — full-jitter capped backoff; per-host breaker |
-| MED | Retrieval filtering (date/source/section) + min-score | ✅ | `rag --min-score/--source/--section/--kind` |
-| LOW | arXiv PDF full-text cache (avoid re-download) | ✅ | `arxiv._cached_pdf` → `data/cache/arxiv_pdf/` |
-| — | Sentence/section-boundary-aware + configurable chunking | ✅ | `documents._chunk_sentences`; `PROMETHEUS_CHUNK_WORDS/OVERLAP/SENTENCE_AWARE` |
-| — | Numeric (0–1) drug↔document confidence scoring | ✅ | `link_drug_document.score` + `link_protein_document.score` (saturating, density-aware) |
-| — | Drug↔protein matching: sentence/noun-phrase precision | ✅ | noun-phrase (multiword) patterns + density-weighted numeric `score` downweights single incidental mentions |
-| — | discover.py: weight profile components (targets ×3, names ×2) | ✅ | `discover._profile` / `_protein_profile` |
-| — | Entity resolution: harmonization, stereoisomers | ✅ | `links._STEREO` strips enantiomer/racemate prefixes in `_norm` (RxNorm/MeSH cross-walk noted below) |
-| — | Validation phase (text length, word-count, id format) | ✅ | `validate.py`; `prometheus validate`; runs in `harvest` |
-| — | Structured JSON logging / observability | ✅ | `obs.py` (`PROMETHEUS_LOG_JSON`/`PROMETHEUS_LOG_FILE`); wired into `net` + `harvest` |
-| — | Harvest query-version tracking (refresh stale results) | ✅ | `data/harvest_state.json`; `harvest.stale_queries()` |
+**Local-only, deliberately not wired into `harvest.py`**: GitHub Actions runners have
+no route to this box's `127.0.0.1:8080` llama-swap endpoint. Run via
+`scripts/sync-local.sh pull && python -m prometheus entities build && scripts/sync-local.sh push`
+on this box. Known unsolved risk: this races the nightly GH Actions harvest (06:00
+UTC) against the same OneDrive state object with no cross-environment locking — avoid
+running near that window.
 
-## Notes / deliberately scoped
-- **RxNorm/MeSH harmonization** is addressed at the stereoisomer/salt level (no external
-  vocabulary download); a full RxNorm/MeSH cross-walk remains a future enrichment, not a
-  blocker — the graph already resolves trade names via the ChEMBL synonym set.
-- **Numeric link `score`** is intentionally continuous and *additive* to the existing
-  `confidence` text ('strong'/'weak'), so downstream consumers relying on the text label
-  are unaffected.
+Piloted here first; leviathan gets the same `local_llm.py`/`entities.py` pattern as a
+near-mechanical port once this is validated for quality and cost.
 
-## Engineering
-- All work is test-covered: suite grew 80 → 105 tests (`test_net`, `test_chunking`,
-  `test_validate`, plus link-score / stereo / idempotency / harvest-state / randomized-SVD cases).
-- The 11 connectors + their bespoke retry loops collapsed onto one resilient client
-  (`net.py`); behaviour preserved (raise-style vs None-on-failure) per connector.
-
-### Scaling fixes found while remediating (the prod harvest was OOM-killed, exit 137)
-- **LSA fit did a *full* SVD** of the (n_chunks × vocab) TF-IDF matrix — materialising all
-  ~8k singular vectors to keep 128. Replaced with a seeded **randomized truncated SVD**
-  (float32, power iterations) that computes only the top-k: ~50× less work, bounded memory,
-  exact-SVD fallback for small (test) matrices so results are unchanged.
-- **ST embedding** now encodes with a bounded `batch_size`, so a full re-embed (forced by
-  the chunking change) streams instead of allocating one giant activation tensor.
-- **Silver/gold inserts batched** (`executemany`) instead of tens of thousands of single-row
-  appends.
+**Cost validated (2026-07-12): not yet viable at this corpus's scale.** Measured
+steady-state throughput on the live warehouse (2612-doc corpus, ~800-970 new docs/day):
+~98s/doc — one sequential local-LLM call per document via llama-swap's
+`granite-4.0-h-1b`. At that rate, just keeping up with one day's new documents takes
+~24.5h of continuous processing, before touching the pre-existing backlog (~71h to
+clear once). The pilot is correct and behind incremental-skip semantics (safe to
+interrupt/resume), but throughput doesn't clear the bar for production use here, and
+leviathan would hit the identical wall. **Do not port to leviathan** until this is
+fixed — batched/concurrent local-LLM calls, a faster model, or scoping extraction to a
+curated subset are the likely paths; unstarted as of this writing.

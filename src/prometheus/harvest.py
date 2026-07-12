@@ -2,7 +2,10 @@
 
 A *topics file* (JSON) lists the searches you care about per source. `harvest` runs
 them all (incrementally accumulating in the landing zone), then rebuilds the corpus,
-datasets, links, and semantic index. One command, repeatable, schedulable.
+datasets, and semantic index. One command, repeatable, schedulable.
+
+The entity graph (`entities.py`) is deliberately NOT rebuilt here -- it needs a local
+LLM (llama-swap) this runner has no route to; run `entities build` locally instead.
 
 Topics file shape:
     {
@@ -27,7 +30,7 @@ from datetime import datetime, timezone
 
 from pathlib import Path
 
-from . import config, corpus, datasets, embeddings, links, obs, suggest, validate
+from . import config, corpus, datasets, embeddings, obs, suggest, validate
 from .sources import (bindingdb, chembl, clinicaltrials, ensembl, pdb, pubchem,
                       uniprot)
 from .storage import connect
@@ -176,7 +179,6 @@ def harvest(topics: dict, limit: int = 25, build: bool = True,
             try:
                 corpus.build(con)
                 datasets.build(con)
-                links.build(con)
                 # Backend is env-selectable so an unattended, memory-tight box can pin
                 # the lean keyless LSA path (~400 MB, ~90 s) instead of the heavier
                 # 'auto' -> sentence-transformers default (~1.5 GB, slow full re-embeds).

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import seed
 
-from prometheus import documents, jats, links
+from prometheus import documents, jats
 from prometheus.sources import arxiv, chembl, clinicaltrials, uniprot
 
 
@@ -106,16 +106,7 @@ def test_uniprot_flatten_extracts_xrefs():
     assert "Mu opioid receptor" in aliases and "MOP" in aliases and "MOR1" in aliases
 
 
-# ---- normalization + chunking ----
-def test_norm_strips_salts_and_filters():
-    assert links._norm("NALOXONE HYDROCHLORIDE DIHYDRATE") == "naloxone"
-    assert links._norm("water") is None          # stoplisted
-    assert links._norm("abc") is None             # too short
-    assert links._term("Duragesic") == "duragesic"
-    assert links._term("Liquid pred") is None     # multiword
-    assert links._term("NSC-10023") is None       # coded / short token
-
-
+# ---- chunking ----
 def test_chunk_windows_overlap():
     words = [f"w{i}" for i in range(500)]
     chunks = list(documents._chunk(words, size=220, overlap=40))
